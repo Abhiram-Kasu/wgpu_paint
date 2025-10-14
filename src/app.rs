@@ -1,12 +1,12 @@
-use crate::state::{self, State};
+use crate::state;
 use std::sync::Arc;
 
 use winit::{
     application::ApplicationHandler,
-    event::KeyEvent,
-    event_loop::{ActiveEventLoop, EventLoop},
-    keyboard::{KeyCode, PhysicalKey},
-    window::{self, Window, WindowAttributes},
+    event::{KeyEvent, MouseButton},
+    event_loop::ActiveEventLoop,
+    keyboard::PhysicalKey,
+    window::{self, WindowAttributes},
 };
 
 pub struct App {
@@ -17,7 +17,7 @@ pub struct App {
 
 impl ApplicationHandler<state::State> for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        let mut window_attributes = WindowAttributes::default();
+        let window_attributes = WindowAttributes::default();
         #[cfg(target_arch = "wasm32")]
         {
             use wasm_bindgen::JsCast;
@@ -58,7 +58,7 @@ impl ApplicationHandler<state::State> for App {
         }
     }
 
-    fn user_event(&mut self, _event_loop: &ActiveEventLoop, mut event: state::State) {
+    fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: state::State) {
         // This is where proxy.send_event() ends up
         #[cfg(target_arch = "wasm32")]
         {
@@ -74,7 +74,7 @@ impl ApplicationHandler<state::State> for App {
     fn window_event(
         &mut self,
         event_loop: &ActiveEventLoop,
-        window_id: window::WindowId,
+        _window_id: window::WindowId,
         event: winit::event::WindowEvent,
     ) {
         let app_state = if let Some(state) = &mut self.state {
@@ -109,14 +109,85 @@ impl ApplicationHandler<state::State> for App {
                     },
                 ..
             } => app_state.handle_key(event_loop, code, state.is_pressed()),
-            // TODO listen for mouse input and for clicks here
+            WindowEvent::CursorMoved {
+                device_id: _,
+                position,
+            } => {
+                // Store previous position before updating
+                app_state.mandelbrot_state.prev_cursor_location =
+                    app_state.mandelbrot_state.cursor_location;
+
+                // Update current position (normalized to [0, 1])
+                let window_size = app_state.window.inner_size();
+                app_state.mandelbrot_state.cursor_location = [
+                    position.x / window_size.width as f64,
+                    position.y / window_size.height as f64,
+                ];
+
+                // If we're dragging, pan the view
+                if app_state.mandelbrot_state.dragging {
+                    let delta_x = app_state.mandelbrot_state.cursor_location[0]
+                        - app_state.mandelbrot_state.prev_cursor_location[0];
+                    let delta_y = app_state.mandelbrot_state.cursor_location[1]
+                        - app_state.mandelbrot_state.prev_cursor_location[1];
+
+                    // Convert screen delta to complex plane delta
+                    let window_size = app_state.window.inner_size();
+                    let aspect_ratio = window_size.width as f32 / window_size.height as f32;
+                    let scale = 2.0 / app_state.mandelbrot_state.zoom;
+
+                    app_state.mandelbrot_state.center[0] -= delta_x as f32 * aspect_ratio * scale;
+                    app_state.mandelbrot_state.center[1] -= delta_y as f32 * scale; // Flip Y
+
+                    app_state.mandelbrot_state.needs_update = true;
+                    app_state.window.request_redraw();
+                }
+            }
+            WindowEvent::MouseInput {
+                device_id: _,
+                state,
+                button,
+            } => {
+                if button == MouseButton::Left {
+                    app_state.mandelbrot_state.dragging = state.is_pressed();
+                }
+            }
+            WindowEvent::MouseWheel {
+                device_id: _,
+                delta,
+                ..
+            } => {
+                use winit::event::MouseScrollDelta;
+                let zoom_factor = match delta {
+                    MouseScrollDelta::LineDelta(_, y) => {
+                        if y > 0.0 {
+                            1.2
+                        } else {
+                            1.0 / 1.2
+                        }
+                    }
+                    MouseScrollDelta::PixelDelta(pos) => {
+                        if pos.y > 0.0 {
+                            1.1
+                        } else {
+                            1.0 / 1.1
+                        }
+                    }
+                };
+
+                app_state.mandelbrot_state.zoom *= zoom_factor;
+                app_state.mandelbrot_state.needs_update = true;
+                app_state.window.request_redraw();
+            }
             _ => {}
         }
     }
 }
 
 impl App {
-    pub fn new(#[cfg(target_arch = "wasm32")] event_loop: &EventLoop<State>) -> Self {
+    pub fn new(
+        #[cfg(target_arch = "wasm32")] event_loop: &winit::event_loop::EventLoop<state::State>,
+    ) -> Self {
         #[cfg(target_arch = "wasm32")]
         let proxy = Some(event_loop.create_proxy());
         Self {

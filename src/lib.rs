@@ -1,4 +1,3 @@
-use std::{iter, sync::Arc};
 mod app;
 mod shader;
 mod state;

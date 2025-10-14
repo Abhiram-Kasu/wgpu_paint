@@ -1,4 +1,4 @@
-use wgpu_paint::run;
+use wgpu_fractals::run;
 
 fn main() {
     run().unwrap()

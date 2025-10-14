@@ -1,6 +1,6 @@
 
 [package]
-name = "wgpu_paint"
+name = "wgpu_fractals"
 version = "0.1.0"
 edition = "2024"
 

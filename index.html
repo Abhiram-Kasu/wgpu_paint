@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>WGPU Fractals</title>
+        <style>
+            body {
+                margin: 0;
+                padding: 20px;
+                background-color: #2b2b2b;
+                color: white;
+                font-family: Arial, sans-serif;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+
+            h1 {
+                margin-bottom: 20px;
+            }
+
+            #canvas {
+                border: 2px solid #555;
+                border-radius: 8px;
+                background-color: black;
+                cursor: crosshair;
+                max-width: 90vw;
+                max-height: 70vh;
+            }
+
+            .instructions {
+                margin-top: 20px;
+                text-align: center;
+                color: #ccc;
+            }
+
+            .instructions p {
+                margin: 5px 0;
+            }
+
+            .error {
+                color: #ff6b6b;
+                background-color: #2d1b1b;
+                padding: 10px;
+                border-radius: 4px;
+                margin: 20px;
+                border: 1px solid #ff6b6b;
+            }
+
+            .loading {
+                color: #4ecdc4;
+                font-style: italic;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>WGPU Paint</h1>
+        <div id="loading" class="loading">Loading WGPU Paint...</div>
+        <canvas
+            id="canvas"
+            width="800"
+            height="600"
+            style="display: none"
+        ></canvas>
+
+        <div class="instructions">
+            <p><strong>Instructions:</strong></p>
+            <p>• Click and drag to paint with a red brush</p>
+            <p>• Press ESC to close the application</p>
+            <p>• The brush size is fixed at 10 pixels</p>
+        </div>
+
+        <script type="module">
+            import init, { run_web } from "./pkg/wgpu_paint.js";
+
+            async function run() {
+                try {
+                    await init();
+
+                    // Hide loading message and show canvas
+                    document.getElementById("loading").style.display = "none";
+                    document.getElementById("canvas").style.display = "block";
+
+                    run_web();
+                } catch (error) {
+                    console.error("Failed to initialize WGPU Paint:", error);
+                    document.getElementById("loading").innerHTML =
+                        '<div class="error">Failed to load WGPU Paint: ' +
+                        error.message +
+                        "</div>";
+                }
+            }
+
+            run();
+        </script>
+    </body>
+</html>
